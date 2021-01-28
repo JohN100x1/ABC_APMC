@@ -84,12 +84,12 @@ cutoff = 20
 
 # Multi plot
 
-y0 = readdlm("data\\"*string(folder)*"\\Normal_mean_errlen_tau10_sig0.1_k5.txt",'\t',Float64,'\n')
-y1 = readdlm("data\\"*string(folder)*"\\Normal_mean_errlen_tau10_sig0.1_k15.txt",'\t',Float64,'\n')
-y2 = readdlm("data\\"*string(folder)*"\\Normal_mean_errlen_tau10_sig0.1_k30.txt",'\t',Float64,'\n')
-y3 = readdlm("data\\"*string(folder)*"\\Cauchy_mean_errlen_tau10_sig0.1_k5.txt",'\t',Float64,'\n')
-y4 = readdlm("data\\"*string(folder)*"\\Cauchy_mean_errlen_tau10_sig0.1_k15.txt",'\t',Float64,'\n')
-y5 = readdlm("data\\"*string(folder)*"\\Cauchy_mean_errlen_tau10_sig0.1_k30.txt",'\t',Float64,'\n')
+y0 = readdlm("data\\"*string(folder)*"\\Normal_mean_err_tau10_sig0.1_k5.txt",'\t',Float64,'\n')
+y1 = readdlm("data\\"*string(folder)*"\\Normal_mean_err_tau10_sig0.1_k15.txt",'\t',Float64,'\n')
+y2 = readdlm("data\\"*string(folder)*"\\Normal_mean_err_tau10_sig0.1_k30.txt",'\t',Float64,'\n')
+y3 = readdlm("data\\"*string(folder)*"\\Cauchy_mean_err_tau10_sig0.1_k5.txt",'\t',Float64,'\n')
+y4 = readdlm("data\\"*string(folder)*"\\Cauchy_mean_err_tau10_sig0.1_k15.txt",'\t',Float64,'\n')
+y5 = readdlm("data\\"*string(folder)*"\\Cauchy_mean_err_tau10_sig0.1_k30.txt",'\t',Float64,'\n')
 
 plot( n[1:30],y0[1:30],xaxis=:log,yaxis=:log,title="Normal(0, "*string(tau)*")",label="k=5, ker=Normal",legend=:bottomleft)
 plot!(n[1:30],y1[1:30],label="k=15 ker=Normal")
@@ -100,7 +100,7 @@ plot!(n[1:30],y5[1:30],label="k=30 ker=Cauchy",style=:dash)
 
 
 xlabel!("n")
-ylabel!("Mean errlen ("*string(t_len)*" iterations per n)")
+ylabel!("Mean err ("*string(t_len)*" iterations per n)")
 
 # Save figure(s)
 savefig("C:\\Users\\JohN100x1\\Documents\\_Programming\\Julia\\NLM_errlen")

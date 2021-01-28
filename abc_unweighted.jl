@@ -27,7 +27,7 @@ function cont(models, pts, wts, np, i, ker, rho)
         m = sample(1:length(models))
     end
     # Sample a particle
-    params = pts[m,i - 1][:,sample(1:size(pts[m,i - 1])[2], wts[m,i - 1])]
+    params = pts[m,i - 1][:,sample(1:size(pts[m,i - 1])[2])]
     # Perturb the particle with kernel m
     params = params + rand(ker[m])
     ### Keep repeating the sampling and perturbation step if the pdf of the model is zero.
@@ -37,7 +37,7 @@ function cont(models, pts, wts, np, i, ker, rho)
             m = sample(1:length(models))
         end
         count = count + 1
-        params = pts[m,i - 1][:,sample(1:size(pts[m,i - 1])[2], wts[m,i - 1])]
+        params = pts[m,i - 1][:,sample(1:size(pts[m,i - 1])[2])]
         params = params + rand(ker[m])
     end
     ###
@@ -48,7 +48,7 @@ function cont(models, pts, wts, np, i, ker, rho)
 end
 
 
-function APMC(N, models, rho,;names=Vector[[string("parameter", i) for i in 1:length(models[m])] for m in 1:length(models)],prop=0.5,paccmin=0.02,n=2,covar="LinearShrinkage(DiagonalUnequalVariance(), :lw)",perturb="Normal")
+function APMC_unweighted(N, models, rho,;names=Vector[[string("parameter", i) for i in 1:length(models[m])] for m in 1:length(models)],prop=0.5,paccmin=0.02,n=2,covar="LinearShrinkage(DiagonalUnequalVariance(), :lw)",perturb="Normal")
     i = 1
     lm = length(models)
     # N_alpha
@@ -95,7 +95,7 @@ function APMC(N, models, rho,;names=Vector[[string("parameter", i) for i in 1:le
     for j in 1:lm
         params = zeros(N, np[j])
         for num = 1:N
-            params[num,:] = pts[j,i][:,sample(1:size(pts[j,i])[2], wts[j,i])]
+            params[num,:] = pts[j,i][:,sample(1:size(pts[j,i])[2])]
         end
         sig[j,i] = CovarianceEstimation.cov(eval(Meta.parse("$covar")), params)
     end
@@ -188,7 +188,7 @@ function APMC(N, models, rho,;names=Vector[[string("parameter", i) for i in 1:le
             if (size(pts[j,i])[2] > np[j])
                 params = zeros(N, np[j])
                 for num = 1:N
-                    params[num,:] = pts[j,i][:,sample(1:size(pts[j,i])[2], wts[j,i])]
+                    params[num,:] = pts[j,i][:,sample(1:size(pts[j,i])[2])]
                 end
                 sig[j,i] = CovarianceEstimation.cov(eval(Meta.parse("$covar")), params)
                 if isposdef(sig[j,i])

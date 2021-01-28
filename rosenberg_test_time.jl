@@ -77,10 +77,10 @@ cutoff = 11
 
 # Multi plot
 
-y0 = readdlm("data\\"*string(folder)*"\\Normal_mean_time_k10.txt",'\t',Float64,'\n')
-y1 = readdlm("data\\"*string(folder)*"\\Normal_mean_time_k30.txt",'\t',Float64,'\n')
-y2 = readdlm("data\\"*string(folder)*"\\Cauchy_mean_time_k10.txt",'\t',Float64,'\n')
-y3 = readdlm("data\\"*string(folder)*"\\Cauchy_mean_time_k30.txt",'\t',Float64,'\n')
+y0 = readdlm("data\\"*string(folder)*"\\Normal_mean_err_k10.txt",'\t',Float64,'\n')
+y1 = readdlm("data\\"*string(folder)*"\\Normal_mean_err_k30.txt",'\t',Float64,'\n')
+y2 = readdlm("data\\"*string(folder)*"\\Cauchy_mean_err_k10.txt",'\t',Float64,'\n')
+y3 = readdlm("data\\"*string(folder)*"\\Cauchy_mean_err_k30.txt",'\t',Float64,'\n')
 
 plot( n[1:cutoff],y0[1:cutoff],xaxis=:log,yaxis=:log,title="Rosenbrock",label="k=10, ker=Normal",legend=:bottomleft)
 plot!(n[1:cutoff],y1[1:cutoff],label="k=30 ker=Normal")
@@ -88,7 +88,7 @@ plot!(n[1:cutoff],y2[1:cutoff],label="k=10 ker=Cauchy",style=:dash)
 plot!(n[1:cutoff],y3[1:cutoff],label="k=30 ker=Cauchy",style=:dash)
 
 xlabel!("n")
-ylabel!("Mean time ("*string(t_len)*" iterations per n)")
+ylabel!("Mean err ("*string(t_len)*" iterations per n)")
 
 # Save figure(s)
 savefig("C:\\Users\\JohN100x1\\Documents\\_Programming\\Julia\\Rosenbrock_time")
