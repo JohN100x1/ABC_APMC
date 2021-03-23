@@ -48,7 +48,7 @@ function cont(models, pts, wts, np, i, ker, rho)
 end
 
 
-function APMC(N, models, rho,;names=Vector[[string("parameter", i) for i in 1:length(models[m])] for m in 1:length(models)],prop=0.5,paccmin=0.02,n=2,covar="LinearShrinkage(DiagonalUnequalVariance(), :lw)",perturb="Normal")
+function APMC(N, models, rho,;names=Vector[[string("parameter", i) for i in 1:length(models[m])] for m in 1:length(models)],prop=0.5,paccmin=0.02,n=2,covar="LinearShrinkage(DiagonalUnequalVariance(), :lw)",perturb="Normal", df=3)
     i = 1
     lm = length(models)
     # N_alpha
@@ -125,7 +125,7 @@ function APMC(N, models, rho,;names=Vector[[string("parameter", i) for i in 1:le
         # Calculate perturbation kernel for each model
         for j in 1:lm
             if perturb == "Cauchy"
-                ker[j] = MvTDist(1, fill(0.0, np[j]), float.(n * sig[j,i - 1]))
+                ker[j] = MvTDist(df, fill(0.0, np[j]), ((df-2)/df).*float.(n * sig[j,i - 1]))
             elseif perturb == "Normal"
                 ker[j] = MvNormal(fill(0.0, np[j]), n * sig[j,i - 1])
             end
@@ -193,7 +193,7 @@ function APMC(N, models, rho,;names=Vector[[string("parameter", i) for i in 1:le
                 sig[j,i] = CovarianceEstimation.cov(eval(Meta.parse("$covar")), params)
                 if isposdef(sig[j,i])
                     if perturb == "Cauchy"
-                        dker = MvTDist(1, pts[j,i - 1][:,1], float.(n * sig[j,i]))
+                        dker = MvTDist(df, pts[j,i - 1][:,1], ((df-2)/df).*float.(n * sig[j,i]))
                     elseif perturb == "Normal"
                         dker = MvNormal(pts[j,i - 1][:,1], n * sig[j,i - 1])
                     end
