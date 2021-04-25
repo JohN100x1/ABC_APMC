@@ -46,7 +46,9 @@ function get_NLM(Ny, tau, sigma, k, xlim)
     end
     return y, prior_d, rho_lens, th_true, th_ls, th_rd, SIG, p
 end
+GLOBAL_pts = 0
 function run_apmc(N, np, mu, SIG, k, apmc_repeats, model_lens, rho_lens, ker, df)
+    global GLOBAL_pts
     KLD1s = zeros(apmc_repeats, length(N))
     eps1s = zeros(apmc_repeats, length(N))
     for (j,n) in enumerate(N)
@@ -61,30 +63,30 @@ function run_apmc(N, np, mu, SIG, k, apmc_repeats, model_lens, rho_lens, ker, df
             wts1 = apmc_out1.wts[1,T1]
             Nth1 = length(wts1)
             ths1 = apmc_out1.pts[1,T1][:,wsample(1:Nth1, weights(wts1), Nth1)]
+            GLOBAL_pts = ths1
             ### Calculate Kullback-leibler Divergence
             mu1 = mean(ths1, dims=2)
             SIG1 = cov(SimpleCovariance(corrected=true), ths1')
             ### KLD for weighted APMC vs True Posterior
-            iSIG1 = inv(SIG1)
-            KLD1[l] = 0.5*(log(det(SIG1)/det(SIG))-k+tr(iSIG1*SIG)+dot((mu1-mu),iSIG1*(mu1-mu)))
+            KLD1[l] = 0.5*(log(det(SIG1)/det(SIG))-k+tr(\(SIG1,SIG))+dot((mu1-mu),\(SIG1,mu1-mu)))
         end
         KLD1s[:,j] = KLD1
         eps1s[:,j] = eps1
         println("n=",string(n), ": avg. KLD1=",string(mean(KLD1)),": avg. eps1=",string(mean(eps1)))
-        writedlm("data\\KLD_k"*string(k)*"_VARY_n\\KLD1_np"*string(np)*"_"*ker*"_df"*string(df)*".txt", KLD1s)
-        writedlm("data\\KLD_k"*string(k)*"_VARY_n\\eps1_np"*string(np)*"_"*ker*"_df"*string(df)*".txt", eps1s)
+        writedlm("data\\KLD\\KLD1_k"*string(k)*"_np"*string(np)*"_"*ker*"_df"*string(df)*".txt", KLD1s)
+        writedlm("data\\KLD\\eps1_k"*string(k)*"_np"*string(np)*"_"*ker*"_df"*string(df)*".txt", eps1s)
     end
 end
 # Number of data points
-Ny = 1000
+Ny = 100
 # Model parameters
-tau = 10; sigma = 0.1
+tau = 1; sigma = 1
 xlim = [0, 10]
-k = 5
+k = 2
 # APMC parameters
-N = [0.1, 0.5, 1, 2, 5, 10, 15]
-np = 3000
-ker = "Cauchy"
+N = 2 .^ (-10.0:1.0:2.0)
+np = 1000
+ker = "TruncatedTDist"
 df = 10
 ### Start KLD calculation
 apmc_repeats = 1
@@ -100,17 +102,18 @@ run_apmc(N, np, mu, SIG, k, apmc_repeats, model_lens, rho_lens, ker, df)
 
 #------------------------------
 
-folder = "KLD_k5_VARY_n"
-#################### Box plots here
-y0 = readdlm("data\\"*string(folder)*"\\eps1_np3000_Normal_df10.txt",'\t',Float64,'\n')
-y1 = readdlm("data\\"*string(folder)*"\\eps1_np3000_Cauchy_df1.txt",'\t',Float64,'\n')
-y2 = readdlm("data\\"*string(folder)*"\\eps1_np3000_Cauchy_df5.txt",'\t',Float64,'\n')
-y3 = readdlm("data\\"*string(folder)*"\\eps1_np3000_Cauchy_df10.txt",'\t',Float64,'\n')
+folder = "KLD"
 
-plot(N[1:5],mean(y0,dims=1)'[1:5],xlabel = "n",ylabel = "err", fillalpha=0.75, linewidth=2, title="err, np="*string(np)*", k="*string(k),label="Normal",legend=:bottomright)
-plot!(N[1:6],mean(y1,dims=1)'[1:6],label="Cauchy")
-plot!(N[1:6],mean(y2,dims=1)'[1:6],label="T-dist df=5")
-plot!(N[1:6],mean(y3,dims=1)'[1:6],label="T-dist df=10")
+start = 4
+
+#################### Box plots here
+y0 = readdlm("data\\"*string(folder)*"\\KLD1_k2_np2000_Normal.txt",'\t',Float64,'\n')
+y1 = readdlm("data\\"*string(folder)*"\\KLD1_k2_np2000_TDist_df5.txt",'\t',Float64,'\n')
+y2 = readdlm("data\\"*string(folder)*"\\KLD1_k2_np2000_TDist_df10.txt",'\t',Float64,'\n')
+plot(N[start:end],mean(y0[:,start:end],dims=1)', xaxis=:log,yaxis=:log,xlabel = "n",ylabel = "KLD", fillalpha=0.75, linewidth=2, title="KLD, np="*string(np)*", k="*string(k),label="Normal",legend=:topright)
+plot!(N[start:end],mean(y1[:,start:end],dims=1)',label="Tdist df=5")
+plot!(N[start:end],mean(y2[:,start:end],dims=1)',label="Tdist df=10")
+
 # check error with KLD
 # compare with cauchy kernel
 # box plots (i.e. record all repeats)
@@ -122,7 +125,7 @@ plot!(N[1:6],mean(y3,dims=1)'[1:6],label="T-dist df=10")
 ############## fix issue and investigate lower n
 
 # Save figure(s)
-savefig("C:\\Users\\JohN100x1\\Documents\\_Programming\\Julia\\images\\plots_apmc\\plot_compare_err_np3000_k5_upton10")
+savefig("C:\\Users\\JohN100x1\\Documents\\_Programming\\Julia\\M4R Project\\images\\plots_apmc\\plot_kld_np2000_k5_tdist_df5")
 
 
 

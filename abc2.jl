@@ -2,6 +2,9 @@ using Distributions
 using LinearAlgebra
 using CovarianceEstimation
 
+
+include("./TruncatedCauchy.jl")
+
 # Some sort of initialise function
 function init(models, np, rho)
     d = Inf
@@ -124,10 +127,12 @@ function APMC(N, models, rho,;names=Vector[[string("parameter", i) for i in 1:le
         i = i + 1
         # Calculate perturbation kernel for each model
         for j in 1:lm
-            if perturb == "Cauchy"
+            if perturb == "TDist"
                 ker[j] = MvTDist(df, fill(0.0, np[j]), ((df-2)/df).*float.(n * sig[j,i - 1]))
             elseif perturb == "Normal"
                 ker[j] = MvNormal(fill(0.0, np[j]), n * sig[j,i - 1])
+            elseif perturb == "TruncatedTDist"
+                ker[j] = TruncatedCauchy(10,fill(0.0, np[j]), float.(n * sig[j,i - 1]))
             end
         end
         # SMC Sampler step
@@ -148,13 +153,15 @@ function APMC(N, models, rho,;names=Vector[[string("parameter", i) for i in 1:le
             else pacc[j,i] == 0
             end
         end
-        # println(round.(vcat(log10(epsilon[i]), its[i]), digits=3))
+        #println(round.(vcat(log10(epsilon[i]), its[i]), digits=3))
         for j in 1:lm
             pts[j,i] = temp[2:(np[j] + 1),temp[1,:] .== j]
             if size(pts[j,i])[2] > 0
                 # weight calculation
                 keep = inds[reshape(temp[1,:] .== j, s)] .<= s
                 wts[j,i] = @distributed vcat for k in range(1, stop=length(keep))
+                    println(i,",",j,",",k)
+                    @time pdf(ker[j], broadcast(-, pts[j,i - 1], pts[j,i][:,k]))
                     if !keep[k]
                         prod(pdf.(models[j], (pts[j,i][:,k]))) / (1 / (sum(wts[j,i - 1])) * dot(convert(Vector, wts[j,i - 1]), pdf(ker[j], broadcast(-, pts[j,i - 1], pts[j,i][:,k]))))
                     else
@@ -191,11 +198,22 @@ function APMC(N, models, rho,;names=Vector[[string("parameter", i) for i in 1:le
                     params[num,:] = pts[j,i][:,sample(1:size(pts[j,i])[2], wts[j,i])]
                 end
                 sig[j,i] = CovarianceEstimation.cov(eval(Meta.parse("$covar")), params)
+                #--------------------------------------------------------------------------------
+                #--------------------------------------------------------------------------------
+                #--------------------------------------------------------------------------------
+                println(i," ",j)
+                println(wts[j,i])
+                println(sig[j,i])
+                #--------------------------------------------------------------------------------
+                #--------------------------------------------------------------------------------
+                #--------------------------------------------------------------------------------
                 if isposdef(sig[j,i])
-                    if perturb == "Cauchy"
+                    if perturb == "TDist"
                         dker = MvTDist(df, pts[j,i - 1][:,1], ((df-2)/df).*float.(n * sig[j,i]))
                     elseif perturb == "Normal"
                         dker = MvNormal(pts[j,i - 1][:,1], n * sig[j,i - 1])
+                    elseif perturb == "TruncatedTDist"
+                        dker = TruncatedCauchy(10,fill(0.0, np[j]), float.(n * sig[j,i - 1]))
                     end
                     if pdf(dker, pts[j,i][:,1]) == Inf
                         sig[j,i] = sig[j,i - 1]

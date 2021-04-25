@@ -2,11 +2,12 @@ using LinearAlgebra
 using SpecialFunctions
 using Distributions
 using PDMats
-using HCubature
+using Cuba
+#using HCubature
 using Random
 
 import Base: length
-import Distributions: sqmahal, pdf, rand
+import Distributions: sqmahal, rand, pdf
 
 abstract type AbstractTruncatedCauchy <: ContinuousMultivariateDistribution end
 
@@ -36,7 +37,7 @@ length(d::GenericTruncatedCauchy) = d.dim
 sqmahal(d::GenericTruncatedCauchy, x::AbstractVector{<:Real}) = invquad(d.Σ, x - d.μ)
 inlimits(d::GenericTruncatedCauchy, x::AbstractVector{<:Real}) = all(x .> d.μ .- d.limit) && all(x .< d.μ .+ d.limit) ? true : false
 
-function pdf(d::MultivariateDistribution, X::AbstractVector)
+function pdf(d::AbstractTruncatedCauchy, X::AbstractVector)
     length(X) == length(d) ||
         throw(DimensionMismatch("Inconsistent array dimensions."))
     _pdf(d, X)
@@ -45,14 +46,19 @@ end
 function _pdf(d::AbstractTruncatedCauchy, x::AbstractVector{T}) where T<:Real
     # Check if x lies in the truncated region
     if inlimits(d, x)
-        uf(y) = _updf(d, y)
+        a = d.μ .- d.limit
+        b = d.μ .+ d.limit
+        function integrand(y, f)
+            f[1] = prod(b-a) * _updf(d, a .+ (b-a).*y)
+        end
         c = gamma((1+d.dim)/2)/(gamma(0.5) * pi^(0.5*d.dim) * det(d.Σ)^(0.5))
-        f = c * _updf(d, x) ./ hcubature(uf, d.μ .- d.limit, d.μ .+ d.limit)[1]
+        f = c * _updf(d, x) ./ cuhre(integrand, d.dim)[1][1]
     else
         f = 0
     end
     return f
 end
+
 
 function _updf(d::AbstractTruncatedCauchy, x::AbstractVector{T}) where T<:Real
     return (1 ./ (1 .+ sqmahal(d, x)).^((1+d.dim)/2))
