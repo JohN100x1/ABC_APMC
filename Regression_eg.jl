@@ -11,7 +11,7 @@ include("./types.jl")
 include("./abc2.jl")
 
 # Set random seed
-seed = 200
+seed = 204
 Random.seed!(seed[1])
 
 # Generate data from Normal Linear Model
@@ -46,9 +46,7 @@ function get_NLM(Ny, tau, sigma, k, xlim)
     end
     return y, prior_d, rho_lens, th_true, th_ls, th_rd, SIG, p
 end
-GLOBAL_pts = 0
 function run_apmc(N, np, mu, SIG, k, apmc_repeats, model_lens, rho_lens, ker, df)
-    global GLOBAL_pts
     KLD1s = zeros(apmc_repeats, length(N))
     eps1s = zeros(apmc_repeats, length(N))
     for (j,n) in enumerate(N)
@@ -63,7 +61,6 @@ function run_apmc(N, np, mu, SIG, k, apmc_repeats, model_lens, rho_lens, ker, df
             wts1 = apmc_out1.wts[1,T1]
             Nth1 = length(wts1)
             ths1 = apmc_out1.pts[1,T1][:,wsample(1:Nth1, weights(wts1), Nth1)]
-            GLOBAL_pts = ths1
             ### Calculate Kullback-leibler Divergence
             mu1 = mean(ths1, dims=2)
             SIG1 = cov(SimpleCovariance(corrected=true), ths1')
@@ -84,15 +81,17 @@ tau = 1; sigma = 1
 xlim = [0, 10]
 k = 2
 # APMC parameters
-N = 2 .^ (-10.0:1.0:2.0)
-np = 1000
-ker = "TruncatedTDist"
-df = 10
+N = 2 .^ (-10.0:1.0:10.0)
+np = 2000
+ker = "TDist"
+df = 1
 ### Start KLD calculation
-apmc_repeats = 1
+apmc_repeats = 20
 
-# re-run t-dist
-# vary n
+
+# try-catch in R
+# lotka-volterra code (posterior?)
+
 
 # Data, Prior, and Rho
 y, prior_d, rho_lens, th_true, th_ls, th_rd, SIG, p = get_NLM(Ny, tau, sigma, k, xlim)
@@ -104,15 +103,30 @@ run_apmc(N, np, mu, SIG, k, apmc_repeats, model_lens, rho_lens, ker, df)
 
 folder = "KLD"
 
-start = 4
-
 #################### Box plots here
-y0 = readdlm("data\\"*string(folder)*"\\KLD1_k2_np2000_Normal.txt",'\t',Float64,'\n')
-y1 = readdlm("data\\"*string(folder)*"\\KLD1_k2_np2000_TDist_df5.txt",'\t',Float64,'\n')
-y2 = readdlm("data\\"*string(folder)*"\\KLD1_k2_np2000_TDist_df10.txt",'\t',Float64,'\n')
-plot(N[start:end],mean(y0[:,start:end],dims=1)', xaxis=:log,yaxis=:log,xlabel = "n",ylabel = "KLD", fillalpha=0.75, linewidth=2, title="KLD, np="*string(np)*", k="*string(k),label="Normal",legend=:topright)
-plot!(N[start:end],mean(y1[:,start:end],dims=1)',label="Tdist df=5")
-plot!(N[start:end],mean(y2[:,start:end],dims=1)',label="Tdist df=10")
+y0 = readdlm("data\\"*string(folder)*"\\KLD1_k2_np2000_Normal_df10.txt",'\t',Float64,'\n')
+y1 = readdlm("data\\"*string(folder)*"\\KLD1_k2_np2000_TDist_df1.txt",'\t',Float64,'\n')
+y2 = readdlm("data\\"*string(folder)*"\\KLD1_k2_np2000_TDist_df3.txt",'\t',Float64,'\n')
+y3 = readdlm("data\\"*string(folder)*"\\KLD1_k2_np2000_TDist_df5.txt",'\t',Float64,'\n')
+y4 = readdlm("data\\"*string(folder)*"\\KLD1_k2_np2000_TDist_df10.txt",'\t',Float64,'\n')
+y5 = readdlm("data\\"*string(folder)*"\\KLD1_k2_np2000_TDist_df20.txt",'\t',Float64,'\n')
+y6 = readdlm("data\\"*string(folder)*"\\new1_KLD1_k2_np2000_TDist_df1.txt",'\t',Float64,'\n')
+y7 = readdlm("data\\"*string(folder)*"\\new1_KLD1_k2_np2000_TDist_df3.txt",'\t',Float64,'\n')
+y8 = readdlm("data\\"*string(folder)*"\\new1_KLD1_k2_np2000_TDist_df5.txt",'\t',Float64,'\n')
+y9 = readdlm("data\\"*string(folder)*"\\new1_KLD1_k2_np2000_TDist_df10.txt",'\t',Float64,'\n')
+ya = readdlm("data\\"*string(folder)*"\\new1_KLD1_k2_np2000_TDist_df20.txt",'\t',Float64,'\n')
+plot(N,mean(y0,dims=1)', ylim=(0.1,5),xaxis=:log,xlabel = "n",ylabel = "err (average over 20 iterations)", fillalpha=0.75, linewidth=2, title="err, np="*string(np)*", k="*string(k)*" with scale estimation",label="Normal",legend=:top)
+plot!(N,mean(y1,dims=1)', label="TDist df=1")
+plot!(N,mean(y2,dims=1)', label="TDist df=3")
+plot!(N,mean(y3,dims=1)', label="TDist df=5")
+plot!(N,mean(y4,dims=1)', label="TDist df=10")
+plot!(N,mean(y5,dims=1)', label="TDist df=20")
+plot!(N,mean(y6,dims=1)', label="TDist df=1  (with scale estimation)",style=:dash)
+plot!(N,mean(y7,dims=1)', label="TDist df=3  (with scale estimation)",style=:dash)
+plot!(N,mean(y8,dims=1)', label="TDist df=5  (with scale estimation)",style=:dash)
+plot!(N,mean(y9,dims=1)', label="TDist df=10 (with scale estimation)",style=:dash)
+plot!(N,mean(ya,dims=1)', label="TDist df=20 (with scale estimation)",style=:dash)
+
 
 # check error with KLD
 # compare with cauchy kernel
@@ -125,7 +139,7 @@ plot!(N[start:end],mean(y2[:,start:end],dims=1)',label="Tdist df=10")
 ############## fix issue and investigate lower n
 
 # Save figure(s)
-savefig("C:\\Users\\JohN100x1\\Documents\\_Programming\\Julia\\M4R Project\\images\\plots_apmc\\plot_kld_np2000_k5_tdist_df5")
+savefig("C:\\Users\\JohN100x1\\Documents\\_Programming\\Julia\\M4R Project\\images\\plots_final\\plot_eps_np2000_k2_epsvkernel_scale_estimation")
 
 
 

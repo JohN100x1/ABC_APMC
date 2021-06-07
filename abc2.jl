@@ -1,10 +1,11 @@
 using Distributions
 using LinearAlgebra
 using CovarianceEstimation
+using RCall
 
+GLOBAL_pts = 0
 
 include("./TruncatedCauchy.jl")
-
 # Some sort of initialise function
 function init(models, np, rho)
     d = Inf
@@ -111,6 +112,7 @@ function APMC(N, models, rho,;names=Vector[[string("parameter", i) for i in 1:le
     end
     # The main while loop for the second iteration and beyond
     while maximum(pacc[:,i]) > paccmin
+        global GLOBAL_pts
         pts = reshape(pts, i * length(models))
         sig = reshape(sig, i * length(models))
         wts = reshape(wts, i * length(models))
@@ -128,7 +130,7 @@ function APMC(N, models, rho,;names=Vector[[string("parameter", i) for i in 1:le
         # Calculate perturbation kernel for each model
         for j in 1:lm
             if perturb == "TDist"
-                ker[j] = MvTDist(df, fill(0.0, np[j]), ((df-2)/df).*float.(n * sig[j,i - 1]))
+                ker[j] = MvTDist(df, fill(0.0, np[j]), float.(n * sig[j,i - 1]))
             elseif perturb == "Normal"
                 ker[j] = MvNormal(fill(0.0, np[j]), n * sig[j,i - 1])
             elseif perturb == "TruncatedTDist"
@@ -160,8 +162,6 @@ function APMC(N, models, rho,;names=Vector[[string("parameter", i) for i in 1:le
                 # weight calculation
                 keep = inds[reshape(temp[1,:] .== j, s)] .<= s
                 wts[j,i] = @distributed vcat for k in range(1, stop=length(keep))
-                    println(i,",",j,",",k)
-                    @time pdf(ker[j], broadcast(-, pts[j,i - 1], pts[j,i][:,k]))
                     if !keep[k]
                         prod(pdf.(models[j], (pts[j,i][:,k]))) / (1 / (sum(wts[j,i - 1])) * dot(convert(Vector, wts[j,i - 1]), pdf(ker[j], broadcast(-, pts[j,i - 1], pts[j,i][:,k]))))
                     else
@@ -197,19 +197,48 @@ function APMC(N, models, rho,;names=Vector[[string("parameter", i) for i in 1:le
                 for num = 1:N
                     params[num,:] = pts[j,i][:,sample(1:size(pts[j,i])[2], wts[j,i])]
                 end
-                sig[j,i] = CovarianceEstimation.cov(eval(Meta.parse("$covar")), params)
-                #--------------------------------------------------------------------------------
-                #--------------------------------------------------------------------------------
-                #--------------------------------------------------------------------------------
-                println(i," ",j)
-                println(wts[j,i])
-                println(sig[j,i])
-                #--------------------------------------------------------------------------------
-                #--------------------------------------------------------------------------------
-                #--------------------------------------------------------------------------------
+                if perturb == "TDist" && df < 2
+                    @rput params
+                    R"""
+                    library(fitHeavyTail)
+                    tryCatch(scale_matrix <- fit_Cauchy(params)$scatter, error = function(c) scale_matrix <- 0)
+                    """
+                    @rget scale_matrix
+                    if norm(scale_matrix) < 1e-100
+                        sig[j,i] = CovarianceEstimation.cov(eval(Meta.parse("$covar")), params)
+                    else
+                        sig[j,i] = scale_matrix
+                    end
+                elseif perturb == "TDist" && df == 2
+                    @rput params df
+                    R"""
+                    library(fitHeavyTail)
+                    tryCatch(scale_matrix <- fit_mvt(params, nu=2.0001)$scatter, error = function(c) scale_matrix <- 0)
+                    """
+                    @rget scale_matrix
+                    if norm(scale_matrix) < 1e-100
+                        sig[j,i] = CovarianceEstimation.cov(eval(Meta.parse("$covar")), params)
+                    else
+                        sig[j,i] = scale_matrix
+                    end
+                elseif perturb == "TDist" && df > 2
+                    @rput params df
+                    R"""
+                    library(fitHeavyTail)
+                    tryCatch(scale_matrix <- fit_mvt(params, nu=df)$scatter, error = function(c) scale_matrix <- 0)
+                    """
+                    @rget scale_matrix
+                    if norm(scale_matrix) < 1e-100
+                        sig[j,i] = CovarianceEstimation.cov(eval(Meta.parse("$covar")), params)
+                    else
+                        sig[j,i] = scale_matrix
+                    end
+                else
+                    sig[j,i] = CovarianceEstimation.cov(eval(Meta.parse("$covar")), params)
+                end
                 if isposdef(sig[j,i])
                     if perturb == "TDist"
-                        dker = MvTDist(df, pts[j,i - 1][:,1], ((df-2)/df).*float.(n * sig[j,i]))
+                        dker = MvTDist(df, pts[j,i - 1][:,1], float.(n * sig[j,i]))
                     elseif perturb == "Normal"
                         dker = MvNormal(pts[j,i - 1][:,1], n * sig[j,i - 1])
                     elseif perturb == "TruncatedTDist"
@@ -231,6 +260,7 @@ function APMC(N, models, rho,;names=Vector[[string("parameter", i) for i in 1:le
             nbs[j] = length(wts[j,i])
             #println(round.(hcat(mean(diag(sig[j,i]) ./ diag(sig[j,1])), pacc[j,i], nbs[j], p[j,i]), digits=3))
         end
+        GLOBAL_pts = pts
     end
     samp = ABCfit(pts, sig, wts, p, its, dists, epsilon, temp, pacc, names, models)
     return(samp)
